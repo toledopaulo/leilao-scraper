@@ -42,7 +42,7 @@ class Leiloes(object):
             element_name="div", 
             class_name="col-sm-6 col-md-4 col-lg-3"
         )
-        imoveis_disponiveis_dict = {}
+        imoveis_disponiveis_list = []
         for imovel in get_todos_imoveis_div:
             imovel_count = imovel_count + 1
             link_leilao_especificio = self.scrape.find_specific_element_by_class(html=imovel, element_name="a", class_name="card-title")['href']
@@ -130,7 +130,7 @@ class Leiloes(object):
             if "Imóvel desocupado" in get_descricao_detalhada:
                 imovel_desocupado = True
             
-            imoveis_disponiveis_dict[imovel_count] = {
+            imoveis_disponiveis_list.append({
                 "imovel_link": link_leilao_especificio,
                 "imovel_descricao": titulo_leilao.strip(),
                 "imovel_desocupado": imovel_desocupado,
@@ -146,5 +146,45 @@ class Leiloes(object):
                 "valor_1_praca": valor_primeira_praca.strip(),
                 "data_2_praca": data_2_praca.strip(),
                 "valor_2_praca": valor_segunda_praca.strip()
-            }
-        return imoveis_disponiveis_dict
+            })
+        print("------ LEILOES.PY -------")
+        print(imoveis_disponiveis_list)
+        return imoveis_disponiveis_list
+    
+    def scrape_caixa_leiloes(self, cidade):
+        # Scraper só está puxando os imóveis de licitação aberta, alterar o filtro caso queira todos
+        r = requests.Session()
+        r.headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:126.0) Gecko/20100101 Firefox/126.0"}
+        codigo_cidade = {"praia_grande": "9717"}
+        form_data = {
+            "hdn_estado": "SP",
+            "hdn_cidade": codigo_cidade[cidade],
+            "hdn_bairro": "",
+            "hdn_tp_venda": "21",
+            "hdn_tp_imovel": "4",
+            "hdn_area_util": "Selecione",
+            "hdn_faixa_vlr": "Selecione",
+            "hdn_quartos": "Selecione",
+            "hdn_vg_garagem": "Selecione",
+            "strValorSimulador": "",
+            "strAceitaFGTS": "",
+            "strAceitaFinanciamento": ""
+        }
+        pesquisa_imoveis = r.post("https://venda-imoveis.caixa.gov.br/sistema/carregaPesquisaImoveis.asp",
+            data=form_data
+        )
+        soup = self.scrape.get_beautifulsoup_by_html(pesquisa_imoveis.text)
+        get_all_inputs = self.scrape.find_all_elements_by_element_name(html=soup, element_name="input")
+        imoveis_id_list = []
+        for form in get_all_inputs:
+            if "hdnImov" in form["name"]:
+                imoveis_id_list.append(form["value"])
+
+        imoveis_id = ''.join(imoveis_id_list)
+        carregar_lista_imoveis = r.post("https://venda-imoveis.caixa.gov.br/sistema/carregaListaImoveis.asp",
+            data={"hdnImov": imoveis_id}       
+        )
+        lista_imoveis = self.scrape.find_all_elements_by_class(html=carregar_lista_imoveis.text, class_name="control-group no-bullets")
+        for imovel in lista_imoveis:
+            pass
+        # ) # Carregar Lista Imóveis

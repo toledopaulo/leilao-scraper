@@ -9,7 +9,7 @@ from windows_toasts import WindowsToaster, Toast
 pyexcel = excel.Excel()
 app = Leiloes()
 
-all_imoveis_dict = {}
+all_imoveis_dict = []
 
 def open_planilha_path(path):
     os.startfile(os.getcwd() + "/planilhas")
@@ -26,15 +26,16 @@ def gerar_planilha():
     os.system("cls")
     welcome_ascii()
     os.system("color a")
-    planilha_path = pyexcel.dict_to_excel(all_imoveis_dict)
-    run_toast_notification(path=planilha_path)
-    print(f"[Leiloeiro] Sua planilha foi gerada com sucesso em: {planilha_path}")
-    abrir_planilha_resposta = input("[Leiloeiro] Deseja abrir a planilha agora? (S/N): ")
-    if abrir_planilha_resposta.upper() == "S":
-        open_planilha_path(planilha_path)
-        raise SystemExit(0)
-    else:
-        raise SystemExit(0)
+    planilha_path = pyexcel.dict_to_pandas_excel(all_imoveis_dict)
+    # planilha_path = pyexcel.(all_imoveis_dict)
+    # run_toast_notification(path=planilha_path)
+    # print(f"[Leiloeiro] Sua planilha foi gerada com sucesso em: {planilha_path}")
+    # abrir_planilha_resposta = input("[Leiloeiro] Deseja abrir a planilha agora? (S/N): ")
+    # if abrir_planilha_resposta.upper() == "S":
+    #     open_planilha_path(planilha_path)
+    #     raise SystemExit(0)
+    # else:
+    #     raise SystemExit(0)
 
 def welcome_ascii():
     print("""
@@ -78,15 +79,23 @@ def run_megaleiloes():
 
     for url in all_urls_megaleiloes:
         temp_dict = app.scrape_megaleiloes_page_by_url(leilao_url=url, imovel_count=len(all_imoveis_dict))
-        all_imoveis_dict.update(temp_dict)
+        all_imoveis_dict.extend(temp_dict)
+
+    print("----- MAIN ------")
+    print(all_imoveis_dict)
+def run_caixa_leiloes():
+    app.scrape_caixa_leiloes("praia_grande")
 
 
 if __name__ in "__main__":
-    os.system("title Leiloeiro - Leilões da Baixada Santista && color f &&cls")
-    welcome_ascii()
-    resposta_gerar_planilha = str(input("[Leiloeiro] Gerar planilha? (S/N): "))
-    if resposta_gerar_planilha.upper() == "S":
-        run_megaleiloes()
-        gerar_planilha()
-    else:
-        sys.exit()
+    run_megaleiloes()
+    gerar_planilha()
+    # run_caixa_leiloes()
+    # os.system("title Leiloeiro - Leilões da Baixada Santista && color f &&cls")
+    # welcome_ascii()
+    # resposta_gerar_planilha = str(input("[Leiloeiro] Gerar planilha? (S/N): "))
+    # if resposta_gerar_planilha.upper() == "S":
+    #     run_megaleiloes()
+    #     gerar_planilha()
+    # else:
+    #     sys.exit()

@@ -12,6 +12,14 @@ class Scraper(object):
         soup = BeautifulSoup(page.content, 'html.parser')
         return soup
     
+    def get_beautifulsoup_by_html(self, html: str):
+        soup = BeautifulSoup(html, 'html.parser')
+        return soup
+
+    def find_all_elements_by_element_name(self, html: BeautifulSoup, element_name: str):
+        result = html.find_all(element_name)
+        return result
+
     def find_all_elements_by_id(self, html: BeautifulSoup, element_name: None, element_id: str):
         result = html.find_all(element_name, id=element_id)
         return result
