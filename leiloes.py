@@ -1,6 +1,9 @@
 import scraper
 import requests
 from sty import fg, bg, ef, rs
+import pandas as pd
+import datetime
+from io import StringIO
 
 class Leiloes(object):
     def __init__(self):
@@ -126,42 +129,95 @@ class Leiloes(object):
             if len(get_praca_valores) > 1:
                 valor_segunda_praca = get_praca_valores[1].text
 
-            imovel_desocupado = False
+            imovel_desocupado = "OCUPADO"
             if "Imóvel desocupado" in get_descricao_detalhada:
-                imovel_desocupado = True
+                imovel_desocupado = "DESOCUPADO"
             
             imoveis_disponiveis_list.append({
-                "imovel_link": link_leilao_especificio,
-                "imovel_descricao": titulo_leilao.strip(),
-                "imovel_desocupado": imovel_desocupado,
-                "endereco": endereco_leilao.strip(),
-                "estado": estado,
-                "cidade": cidade,
-                "bairro": bairro,
-                "tipo_leilao": tipo_leilao.strip(),
-                "tipo_imovel": tipo_do_imovel.strip().capitalize(),
-                "codigo_leilao": codigo_leilao.strip(),
-                "numero_lote": numero_do_lote.strip(),
-                "data_1_praca": data_1_praca.strip(),
-                "valor_1_praca": valor_primeira_praca.strip(),
-                "data_2_praca": data_2_praca.strip(),
-                "valor_2_praca": valor_segunda_praca.strip()
+                "Site do Leilão": "MEGA LEILÕES",
+                "Link do Leilão": link_leilao_especificio.strip(),
+                "Estado da Ocupação": imovel_desocupado,
+                "Endereço": endereco_leilao.strip(),
+                "Estado": "SP",
+                "Cidade": cidade.strip(),
+                "Bairro": bairro.strip(),
+                "Modalidade do Leilão": tipo_leilao.strip(),
+                "Tipo do Imóvel": tipo_do_imovel.strip(),
+                "N° do Lote": numero_do_lote.strip(),
+                "Data 1° praça": data_1_praca_formatada.strip(),
+                "Valor 1° praça": valor_primeira_praca,
+                "Data 2° praça": data_2_praca_formatada.strip(),
+                "Valor 2° praça": valor_segunda_praca.strip(),
+                "Valor avaliado do imóvel": "Sem informação",
+                "Preço final do imóvel": "Sem informação" 
             })
-        print("------ LEILOES.PY -------")
-        print(imoveis_disponiveis_list)
         return imoveis_disponiveis_list
-    
-    def scrape_caixa_leiloes(self, cidade):
+
+    # def download_caixa_imoveis(self, estado: str):
+    #     r = requests.Session()
+    #     r.headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:126.0) Gecko/20100101 Firefox/126.0"}
+    #     lista_imoveis_array = []
+    #     get_imoveis_csv = r.get(f"https://venda-imoveis.caixa.gov.br/listaweb/Lista_imoveis_{estado.upper()}.csv").text
+    #     df = pd.read_csv(get_imoveis_csv.split(" N°")[1])
+    #     print(df.head())
+    #     # data = pd.read_csv(lista_imoveis_csv.text)
+    #     # print(data.head(2))
+    def scrape_caixa_leiloes_v2(self, estado, cidades: list):
+        r = requests.Session()
+        imoveis_disponiveis_list = []
+        r.headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:126.0) Gecko/20100101 Firefox/126.0"}
+        get_imoveis_csv = r.get(f"https://venda-imoveis.caixa.gov.br/listaweb/Lista_imoveis_{estado.upper()}.csv").text
+        cidades_list = ["PRAIA GRANDE", "SAO VICENTE", "SANTOS"]
+        df = pd.read_csv(StringIO(get_imoveis_csv), index_col=0, encoding="ISO-8859-1", on_bad_lines='skip', skiprows=2, sep=';')
+        df_filtrado_pg = df[df["Cidade"].str.contains("PRAIA GRANDE")]
+        df_filtrado_sv = df[df["Cidade"].str.contains("SAO VICENTE")]
+        df_filtrado_santos = df[df["Cidade"].str.contains("SANTOS")]
+        df_geral = pd.concat([df_filtrado_pg, df_filtrado_sv, df_filtrado_santos])
+        for i in range(df_geral.shape[0]):
+            link_leilao = df_geral.columns[9]
+            descricao = df_geral.columns[7]
+            valor_imovel = df_geral.columns[4]
+            endereco = df_geral.columns[3]
+            tipo_imovel = str(descricao).split(",")[0]
+            tipo_venda = df_geral.columns[8]
+            cidade = df_geral.columns[1]
+            bairro = df_geral.columns[2]
+            valor_avaliado_imovel = df_geral.columns[5]
+            imoveis_disponiveis_list.append({
+                "Site do Leilão": "CAIXA LEILÕES",
+                "Link do Leilão": link_leilao,
+                "Estado da Ocupação": "Sem informação",
+                "Endereço": endereco,
+                "Estado": df_geral.columns[0],
+                "Cidade": cidade,
+                "Bairro": bairro,
+                "Modalidade do Leilão": tipo_venda,
+                "Tipo do Imóvel": tipo_imovel,
+                "N° do Lote": "Sem informação",
+                "Data 1° praça": "Sem informação",
+                "Valor 1° praça": "Sem informação",
+                "Data 2° praça": "Sem informação",
+                "Valor 2° praça": "Sem informação",
+                "Valor avaliado do imóvel": valor_avaliado_imovel,
+                "Preço final do imóvel": valor_imovel 
+            })
+        return imoveis_disponiveis_list
+
+
+    def scrape_caixa_leiloes(self, cidade, tipo_venda):
         # Scraper só está puxando os imóveis de licitação aberta, alterar o filtro caso queira todos
+        imoveis_disponiveis_list = []
         r = requests.Session()
         r.headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:126.0) Gecko/20100101 Firefox/126.0"}
-        codigo_cidade = {"praia_grande": "9717"}
+        codigo_cidade = {"praia_grande": "9717", "santos": "9827", "sao_vicente": "9869"}
+        cidade_formatada = {"praia_grande": "Praia Grande", "sao_vicente": "São Vicente", "santos": "Santos"}
+        codigo_venda = {"licitacao_aberta": "21", "venda_direta": "34", "venda_online": "33"}
         form_data = {
             "hdn_estado": "SP",
             "hdn_cidade": codigo_cidade[cidade],
             "hdn_bairro": "",
-            "hdn_tp_venda": "21",
-            "hdn_tp_imovel": "4",
+            "hdn_tp_venda": codigo_venda[tipo_venda],
+            "hdn_tp_imovel": "Selecione",
             "hdn_area_util": "Selecione",
             "hdn_faixa_vlr": "Selecione",
             "hdn_quartos": "Selecione",
@@ -173,18 +229,64 @@ class Leiloes(object):
         pesquisa_imoveis = r.post("https://venda-imoveis.caixa.gov.br/sistema/carregaPesquisaImoveis.asp",
             data=form_data
         )
-        soup = self.scrape.get_beautifulsoup_by_html(pesquisa_imoveis.text)
-        get_all_inputs = self.scrape.find_all_elements_by_element_name(html=soup, element_name="input")
+        get_all_inputs = self.scrape.find_all_elements_by_element_name(html=self.scrape.get_beautifulsoup_by_html(pesquisa_imoveis.text), element_name="input")
         imoveis_id_list = []
         for form in get_all_inputs:
             if "hdnImov" in form["name"]:
                 imoveis_id_list.append(form["value"])
 
-        imoveis_id = ''.join(imoveis_id_list)
+        imoveis_id = '||'.join(imoveis_id_list)
         carregar_lista_imoveis = r.post("https://venda-imoveis.caixa.gov.br/sistema/carregaListaImoveis.asp",
             data={"hdnImov": imoveis_id}       
         )
-        lista_imoveis = self.scrape.find_all_elements_by_class(html=carregar_lista_imoveis.text, class_name="control-group no-bullets")
-        for imovel in lista_imoveis:
-            pass
-        # ) # Carregar Lista Imóveis
+        for imovel_id in imoveis_id.split("||"):
+            try:
+                link_leilao = f"https://venda-imoveis.caixa.gov.br/sistema/detalhe-imovel.asp?hdnOrigem=index&hdnimovel={imovel_id}"
+                html = r.get(link_leilao).text
+                get_all_spans = self.scrape.find_all_elements_by_element_name(html=self.scrape.find_specific_element_by_class(html=self.scrape.get_beautifulsoup_by_html(html), element_name="div", class_name="control-item control-span-6_12"),
+                                                            element_name="span"
+                                                            )
+                
+                get_endereco_text = self.scrape.find_all_elements_by_element_name(html=self.scrape.find_specific_element_by_class(html=self.scrape.get_beautifulsoup_by_html(html), class_name="related-box", element_name="div"), element_name="p")
+                endereco = str(get_endereco_text[0].text).replace("Endereço:", "")
+                bairro = str(get_endereco_text[0].text).split(" - CEP")[0].split(", ")[1]
+                for i in get_all_spans:
+                    if "Tipo de imóvel: " in i.text:
+                        tipo_imovel = str(i.text).replace("Tipo de imóvel: ", "")
+                if 'desocupado' in html.lower():
+                    imovel_desocupado = True
+                else:
+                    imovel_desocupado = False
+                imoveis_disponiveis_list.append({
+                    "imovel_link": link_leilao,
+                    "imovel_descricao": "",
+                    "imovel_desocupado": imovel_desocupado,
+                    "endereco": endereco,
+                    "estado": "SP",
+                    "cidade": cidade_formatada[cidade],
+                    "bairro": bairro,
+                    "tipo_leilao": tipo_venda,
+                    "tipo_imovel": tipo_imovel,
+                    "codigo_leilao": "",
+                    "numero_lote": "",
+                    "data_1_praca": "",
+                    "valor_1_praca": "",
+                    "data_2_praca": "",
+                    "valor_2_praca": ""
+                })
+            except Exception as e:
+                print(e)
+
+        return imoveis_disponiveis_list 
+        # lista_imoveis = self.scrape.find_all_elements_by_class(html=carregar_lista_imoveis.text, element_name="ul", class_name="control-group no-bullets")
+        
+    def scrape_frazao_leiloes(self, cidade):
+        get_primeira_pagina = self.scrape.get_page_html('https://www.frazaoleiloes.com.br/lotes/busca/e/SP/todas-as-cidades?pagina=1')
+        total_leiloes = self.scrape.find_specific_element_by_id(html=get_primeira_pagina, element_name="div", element_id="content_list_lote")
+        print(total_leiloes)
+        # for imovel in lista_imoveis:
+        #     div_titulo = self.scrape.find_specific_element_by_class(html=str(imovel), 
+        #                                                class_name="control-item control-span-12_12" ,
+        #                                                element_name="div"
+        #     )
+        #     titulo = self.scrape.find_specific_element_by_class(html=str(div_titulo), element_name="font", class_name="").text
